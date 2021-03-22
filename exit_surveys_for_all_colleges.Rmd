@@ -1,0 +1,23 @@
+---
+title: "exit surveys for all colleges"
+author: "JP"
+date: "3/12/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(tidyverse)
+
+grad <- read_csv("C:/Users/cpppe/Desktop/github_projects/exitsurveys/data/full_grad.csv")
+
+names(grad)
+```
+
+## CAS-Natural Sciences
+```{r}
+grad %>% 
+  count(program)
+```
+
