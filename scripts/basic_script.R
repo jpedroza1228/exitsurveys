@@ -26,6 +26,7 @@ exit %>%
   facet_wrap(~program_dept_college) +
   theme(axis.title.x=element_blank(),
         axis.text.x=element_blank(),
-        axis.ticks.x=element_blank())
+        axis.ticks.x=element_blank(),
+        legend.position = 'bottom')
 
 library(rvest)

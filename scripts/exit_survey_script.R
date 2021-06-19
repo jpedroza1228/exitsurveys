@@ -1,6 +1,6 @@
 # Creating function for exit surveys
 
-somd_exitsurvey <- function(link){
+somd15_exitsurvey <- function(link){
   pdf_file <- link
   text_data <- pdftools::pdf_text(pdf_file)
   
@@ -32,7 +32,8 @@ somd_exitsurvey <- function(link){
                    teach_prep_ex = pg3[14],
                    grad_clear_assess_ex = pg3[15],
                    inter_sup_ex = pg3[16],
-                   prof_ethic_train_ex = pg3[17])
+                   prof_ethic_train_ex = pg3[17]) %>% 
+    tibble::rowid_to_column()
   
   pdf_pg4 <- pdftools::pdf_data(pdf_file)[4]
   pg4_pull <- pdf_pg4[[1]]$text
@@ -54,7 +55,8 @@ somd_exitsurvey <- function(link){
                    teach_prep_ex_good = pg4[14],
                    grad_clear_assess_ex_good = pg4[15],
                    inter_sup_ex_good = pg4[16],
-                   prof_ethic_train_ex_good = pg4[17])
+                   prof_ethic_train_ex_good = pg4[17]) %>% 
+    tibble::rowid_to_column()
   
   pdf_pg5 <- pdftools::pdf_data(pdf_file)[5]
   pg5_pull <- pdf_pg5[[1]]$text
@@ -76,7 +78,8 @@ somd_exitsurvey <- function(link){
                    teach_prep_fair_poor = pg5[15],
                    grad_clear_assess_fair_poor = pg5[15],
                    inter_sup_fair_poor = pg5[16],
-                   prof_ethic_train_fair_poor = pg5[17])
+                   prof_ethic_train_fair_poor = pg5[17]) %>% 
+    tibble::rowid_to_column()
   
   pdf_pg6 <- pdftools::pdf_data(pdf_file)[6]
   pg6_pull <- pdf_pg6[[1]]$text
@@ -94,7 +97,8 @@ somd_exitsurvey <- function(link){
                    help_prof_dev_agree = pg6[10],
                    publish_help_agree = pg6[11],
                    encourage_intel_diff_agree = pg6[12],
-                   comfort_talk_issue_agree = pg6[13])
+                   comfort_talk_issue_agree = pg6[13]) %>% 
+    tibble::rowid_to_column()
   
   pdf_pg7 <- pdftools::pdf_data(pdf_file)[7]
   pg7_pull <- pdf_pg7[[1]]$text
@@ -112,7 +116,8 @@ somd_exitsurvey <- function(link){
                    help_prof_dev_disagree = pg7[10],
                    publish_help_disagree = pg7[11],
                    encourage_intel_diff_disagree = pg7[12],
-                   comfort_talk_issue_disagree = pg7[13])
+                   comfort_talk_issue_disagree = pg7[13]) %>% 
+    tibble::rowid_to_column()
   
   pdf_pg8 <- pdftools::pdf_data(pdf_file)[8]
   pg8_pull <- pdf_pg8[[1]]$text
@@ -128,7 +133,8 @@ somd_exitsurvey <- function(link){
                    inclu_intern_stu_strong = pg8[8],
                    inclu_stu_disab_strong = pg8[9],
                    inclu_first_gen_strong = pg8[10],
-                   inclu_stu_sex_orient_strong = pg8[11])
+                   inclu_stu_sex_orient_strong = pg8[11]) %>% 
+    tibble::rowid_to_column()
   
   pdf_pg9 <- pdftools::pdf_data(pdf_file)[9]
   pg9_pull <- pdf_pg9[[1]]$text
@@ -144,7 +150,8 @@ somd_exitsurvey <- function(link){
                    inclu_intern_stu_agree = pg9[8],
                    inclu_stu_disab_agree = pg9[9],
                    inclu_first_gen_agree = pg9[10],
-                   inclu_stu_sex_orient_agree = pg9[11])
+                   inclu_stu_sex_orient_agree = pg9[11]) %>% 
+    tibble::rowid_to_column()
   
   pdf_pg10 <- pdftools::pdf_data(pdf_file)[10]
   pg10_pull <- pdf_pg10[[1]]$text
@@ -160,27 +167,38 @@ somd_exitsurvey <- function(link){
                    inclu_intern_stu_disagree = pg10[8],
                    inclu_stu_disab_disagree = pg10[9],
                    inclu_first_gen_disagree = pg10[10],
-                   inclu_stu_sex_orient_disagree = pg10[11])
+                   inclu_stu_sex_orient_disagree = pg10[11]) %>% 
+    tibble::rowid_to_column()
   
-  return(list(df_pg2, df_pg3, df_pg4, df_pg5,
-              df_pg6, df_pg7, df_pg8, df_pg9, df_pg10))
+  df_college <- full_join(df_pg3, df_pg4) %>% 
+    full_join(df_pg5) %>% 
+    full_join(df_pg6) %>%
+    full_join(df_pg7) %>%
+    full_join(df_pg8) %>%
+    full_join(df_pg9) %>%
+    full_join(df_pg10)
+  
+  return(list(df_pg2, df_college))
+  
 }
 
 
 somd15 <- somd_exitsurvey(link = 'C:/Users/cpppe/Desktop/github_projects/exitsurveys/pdf_data/exit_surveys/student_experience_survey/2015/2015-SOMD-Grad-experience-Survey-Report.pdf')
 somd15
 
+somd15[[1]]$program <- c('Music & Dance', 'Dance', 'Music')
+
+somd15[[2]]$program <- 'Music'
+
+somd_data <- somd15[[2]]
+
+
+
+
+
 
 somd12 <- somd_exitsurvey(link = 'C:/Users/cpppe/Desktop/github_projects/exitsurveys/pdf_data/exit_surveys/student_experience_survey/2012/2012-somd-grad-experience-survey-report.pdf')
 somd12
 
-somd15[[1]]$program <- c('Music & Dance', 'Dance', 'Music')
 
-somd15[[2]]$program <- 'Music'
-somd15[[3]]$program <- 'Music'
-somd15[[4]]$program <- 'Music'
-somd15[[5]]$program <- 'Music'
-somd15[[6]]$program <- 'Music'
-somd15[[7]]$program <- 'Music'
-somd15[[8]]$program <- 'Music'
-somd15[[9]]$program <- 'Music'
+

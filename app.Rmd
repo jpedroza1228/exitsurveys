@@ -1,0 +1,83 @@
+---
+title: "Exit Survey Application"
+author: "JP"
+date: "6/15/2021"
+output: html_document
+runtime: shiny
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r, include = FALSE}
+library(tidyverse)
+library(shiny)
+
+link <- "https://raw.githubusercontent.com/jpedroza1228/exitsurveys/main/data/student_experience.csv"
+
+exit <- read_csv(link) %>% 
+  rowid_to_column() %>% 
+  mutate_if(is.double, as.numeric)
+
+value_only <- exit %>% 
+  select(5:114)
+
+# exit_long <- exit %>% 
+#   pivot_longer(cols = 5:114, names_to = "experience", values_to = "experience_values")
+
+ex <- exit %>% 
+  pivot_longer(cols = tidyselect::vars_select(names(exit), starts_with("fac_qual")),
+                                  names_to = "fac_qual", values_to = "fac_values")
+
+ex %>% 
+  filter(program == "biology" |
+           program == "chemistry") %>% 
+  ggplot(aes(as.factor(fac_qual), fac_values)) + 
+  geom_jitter(aes(color = program)) +
+  geom_col(aes(fill = as.factor(year)), alpha = .3, position = "dodge2") +
+  geom_text(aes(label = fac_values), hjust = 1, position = position_dodge2(width = 1)) +
+  coord_flip() +
+  theme_minimal()
+
+```
+
+
+```{r, echo = FALSE}
+
+ui <- fluidPage(
+    sidebarPanel(
+      selectInput("experience", "Student Experience", choices = names(exit), multiple = TRUE),
+      selectInput("program", "UO Grad Programs", choices = exit$program),
+      selectInput("program2", "UO Grad Programs", choices = exit$program)
+    ),
+  mainPanel(
+    plotOutput("plot")
+  )
+)
+
+
+
+server <- function(input, output) {
+  react_exit <- reactive({
+    exit %>% 
+      pivot_longer(input$experience, names_to = "name", values_to = "value")
+  })
+
+  output$plot <- renderPlot(
+    exit %>% 
+      filter(input$program |
+               input$program2) %>% 
+    ggplot(aes(x = name, y = value)) +
+      geom_col(aes(color = as.factor(year), fill = as.factor(year)), position = "dodge2") +
+      geom_text(aes(label = value), hjust = 1, position = position_dodge2(width = 1)) +
+      coord_flip() +
+      facet_wrap(~program) +
+      theme_minimal()
+  )
+  
+}
+
+shinyApp(ui, server)
+```
+
