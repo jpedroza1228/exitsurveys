@@ -182,4 +182,4 @@ server <- function(input, output, session){
 shinyApp(ui, server)
 # stopApp()
 
-rsconnect::deployApp('path/to/your/app')
+# rsconnect::deployApp()
