@@ -1,0 +1,11 @@
+name: shiny
+title:
+username:
+account: jp-shinyapps
+server: shinyapps.io
+hostUrl: https://api.shinyapps.io/v1
+appId: 5445231
+bundleId: 5470314
+url: https://jp-shinyapps.shinyapps.io/shiny/
+when: 1642205036.69999
+lastSyncTime: 1642205036.69999

@@ -182,4 +182,4 @@ server <- function(input, output, session){
 shinyApp(ui, server)
 # stopApp()
 
-# rsconnect::deployApp()
+# rsconnect::deployApp('C:/Users/cpppe/Desktop/github_projects/exitsurveys/shiny')
