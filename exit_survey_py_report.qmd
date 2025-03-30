@@ -1,0 +1,406 @@
+---
+title: "Exit Surveys for All Colleges"
+author: Jonathan A. Pedroza PhD
+format:
+  html:
+    grid:
+      #sidebar-width: 0px
+      body-width: 1300px
+      #margin-width: 0px
+      gutter-width: 1.5rem
+      # page-layout: full
+      toc: true
+---
+
+```{python}
+import pandas as pd
+from matplotlib import rcParams 
+import numpy as np
+import streamlit as st
+import plotnine as pn
+import plotly.express as px
+from great_tables import GT as gt
+from janitor import clean_names
+
+pd.set_option('mode.copy_on_write', True)
+pd.set_option('display.max_columns', None)
+rcParams.update({'savefig.bbox': 'tight'})
+
+grad = pd.read_csv("https://raw.githubusercontent.com/jpedroza1228/exitsurveys/main/data/full_grad.csv").clean_names(case_type = 'snake')
+```
+
+```{python}
+grad.head()
+
+grad.columns.tolist()
+```
+
+```{python}
+program_cols = grad[grad.columns[grad.columns.str.contains('year|program|_ex$|ex_good$|_fair_poor$')]]
+
+program_df = grad[program_cols.columns]
+
+# program_long = program_df.melt(
+#   id_vars = ['year', 'program'], value_vars = program_cols.columns,
+#   var_name = 'program_req', value_name = 'program_values'
+#   )
+
+# program_long.dropna()
+```
+
+```{python}
+# unique variable names 
+unique_program_var = program_cols.rename(columns = lambda x: pd.Series(x).str.replace(r'(_ex_good|_fair_poor|_ex)$', '', regex = True).iloc[0]).columns.unique()
+
+# all the variables included
+program_cols.columns.tolist()
+
+# all the programs to choose from
+all_programs = program_df['program'].unique().tolist()
+
+program_title = ['', '', 'Faculty Quality', 'Program Quality', 'Financial Support for Grad Students', 'Keeping up With Field', 'Academic Guidance Quality', 'Intellectual Community', 'Career/Professional Development', 'Facilities/Equipment', 'Student Involvement in Program Decisions', 'Research Opportunities', 'Evaluation Criteria Fairness', 'Diversity & Inclusive Community', 'Grant/Funding Training', 'Preparation for Teaching', 'Evaluation Criteria Clarity', 'Interdisciplinary Support', 'Professional Ethics Training']
+
+program_title_df = pd.DataFrame({'var_name': unique_program_var, 'title_name': program_title})
+
+# to only get one value and no longer be treated as a DataFrame
+program_title_df.loc[program_title_df['var_name'] == 'fac_qual', 'title_name'].iloc[0]
+```
+
+```{python}
+# ex = program_df.copy()
+# var_string = 'fac_qual'
+# ex = ex.loc[:, ex.columns.str.contains(f'year|program|{var_string}')]
+
+# ex[f'{var_string}_good'] = ex.loc[:, ex.columns.str.contains('_ex_good$')].squeeze() - ex.loc[:, ex.columns.str.contains('_ex$')].squeeze()
+
+# ex = ex.drop(columns = f'{var_string}_ex_good')
+
+def remove_excellent_good(df, var_string, long = False):
+  if long == False:
+    df = df.loc[:, df.columns.str.contains(f'year|program|{var_string}')]
+
+    df[f'{var_string}_good'] = df.loc[:, df.columns.str.contains('_ex_good$')].squeeze() - df.loc[:, df.columns.str.contains('_ex$')].squeeze()
+
+    df = df.drop(columns = f'{var_string}_ex_good')
+
+    return df
+
+  elif long == True:
+    df = df.loc[:, df.columns.str.contains(f'year|program|{var_string}')]
+
+    df[f'{var_string}_good'] = df.loc[:, df.columns.str.contains('_ex_good$')].squeeze() - df.loc[:, df.columns.str.contains('_ex$')].squeeze()
+
+    df = df.drop(columns = f'{var_string}_ex_good')
+
+    df = df.melt(id_vars = ['year', 'program'], value_vars = df.loc[:, df.columns.str.contains(f'{var_string}')])
+
+    return df
+
+def plotly_stacked(df, var_string, num_program, exact_program, drop = True):
+  ex_var = f'{var_string}_ex'
+  good_var = f'{var_string}_good'
+  fairpoor_var = f'{var_string}_fair_poor'
+
+  plot_names = {fairpoor_var: 'Fair Poor', good_var: 'Good', ex_var: 'Excellent'}
+
+  if num_program == 1:
+    df = df.loc[:, df['program'] == exact_program]
+
+    df['program'] = df['program'].str.title().str.replace('_', ' ')
+
+    title = program_title_df.loc[program_title_df['var_name'] == f'{var_string}', 'title_name'].iloc[0]
+    
+    if drop == True:
+      pro_fig = px.bar(df.dropna(), x = 'program', y = 'value', color = 'variable', facet_col = 'year', category_orders = {'variable': [fairpoor_var, good_var, ex_var]}, title = title)
+      pro_fig.for_each_xaxis(lambda xaxis: xaxis.update(title = ''))
+      pro_fig.for_each_trace(lambda t: t.update(name = plot_names[t.name], legendgroup = plot_names[t.name], hovertemplate = t.hovertemplate.replace(t.name, plot_names[t.name])))
+
+      return pro_fig
+    
+    else:
+      pro_fig = px.bar(df, x = 'program', y = 'value', color = 'variable', facet_col = 'year', category_orders = {'variable': [fairpoor_var, good_var, ex_var]}, title = title)
+      pro_fig.for_each_xaxis(lambda xaxis: xaxis.update(title = ''))
+      pro_fig.for_each_trace(lambda t: t.update(name = plot_names[t.name], legendgroup = plot_names[t.name], hovertemplate = t.hovertemplate.replace(t.name, plot_names[t.name])))
+
+      return pro_fig
+
+  else:
+    df = df.loc[df['program'].isin(exact_program)]
+
+    df['program'] = df['program'].str.title().str.replace('_', ' ')
+    
+    title = program_title_df.loc[program_title_df['var_name'] == f'{var_string}', 'title_name'].iloc[0]
+
+    if drop == True:
+      pro_fig = px.bar(df.dropna(), x = 'program', y = 'value', color = 'variable', facet_col = 'year', category_orders = {'variable': [fairpoor_var, good_var, ex_var]}, title = title)
+      pro_fig.for_each_xaxis(lambda xaxis: xaxis.update(title = ''))
+      pro_fig.for_each_trace(lambda t: t.update(name = plot_names[t.name], legendgroup = plot_names[t.name], hovertemplate = t.hovertemplate.replace(t.name, plot_names[t.name])))
+
+      return pro_fig
+    
+    else:
+      pro_fig = px.bar(df, x = 'program', y = 'value', color = 'variable', facet_col = 'year', category_orders = {'variable': [fairpoor_var, good_var, ex_var]}, title = title)
+      pro_fig.for_each_xaxis(lambda xaxis: xaxis.update(title = ''))
+      pro_fig.for_each_trace(lambda t: t.update(name = plot_names[t.name], legendgroup = plot_names[t.name], hovertemplate = t.hovertemplate.replace(t.name, plot_names[t.name])))
+      
+      return pro_fig
+
+
+def var_table(wide_df, var_string, drop = True):
+  if drop == True:
+    wide_df = wide_df.dropna().round(2).sort_values(['program', 'year'], ascending = True)
+
+    wide_df['program'] = wide_df['program'].str.title().str.replace('_', ' ')
+
+    title = program_title_df.loc[program_title_df['var_name'] == f'{var_string}', 'title_name'].iloc[0]
+
+    table = (
+        gt(wide_df)
+        .tab_header(title = f'{title}')
+        .cols_label(**{'year': 'Year', 'program': 'Program', f'{var_string}_ex': 'Excellent', f'{var_string}_good': 'Good', f'{var_string}_fair_poor': 'Fair Poor'})
+        .cols_move_to_start(columns = ['year', 'program', f'{var_string}_ex', f'{var_string}_good', f'{var_string}_fair_poor'])
+    )
+
+    return table
+
+  else: 
+    wide_df = wide_df.round(2).sort_values(['program', 'year'], ascending = True)
+
+    wide_df['program'] = wide_df['program'].str.title().str.replace('_', ' ')
+
+    title = program_title_df.loc[program_title_df['var_name'] == f'{var_string}', 'title_name'].iloc[0]
+
+    table = (
+        gt(wide_df)
+        .tab_header(title = f'{title}')
+        .cols_label(**{'year': 'Year', 'program': 'Program', f'{var_string}_ex': 'Excellent', f'{var_string}_good': 'Good', f'{var_string}_fair_poor': 'Fair Poor'})
+        .cols_move_to_start(columns = ['year', 'program', f'{var_string}_ex', f'{var_string}_good', f'{var_string}_fair_poor'])
+    )
+
+    return table
+```
+
+```{python}
+#| echo: false
+#| eval: false
+
+def remove_excellent_good(df, var_string, long = False):
+  if long == False:
+    df = df.loc[:, df.columns.str.contains(f'year|program|{var_string}')]
+
+    df[f'{var_string}_good'] = df.loc[:, df.columns.str.contains('_ex_good$')].squeeze() - df.loc[:, df.columns.str.contains('_ex$')].squeeze()
+
+    df = df.drop(columns = f'{var_string}_ex_good')
+
+    return df
+
+  elif long == True:
+    df = df.loc[:, df.columns.str.contains(f'year|program|{var_string}')]
+
+    df[f'{var_string}_good'] = df.loc[:, df.columns.str.contains('_ex_good$')].squeeze() - df.loc[:, df.columns.str.contains('_ex$')].squeeze()
+
+    df = df.drop(columns = f'{var_string}_ex_good')
+
+    df = df.melt(id_vars = ['year', 'program'], value_vars = df.loc[:, df.columns.str.contains(f'{var_string}')])
+
+    return df
+
+def plotly_stacked(df, var_string, num_program, exact_program, drop = True):
+
+  ex_var = f'{var_string}_ex'
+  good_var = f'{var_string}_good'
+  fairpoor_var = f'{var_string}_fair_poor'
+
+  plot_names = {fairpoor_var: 'Fair Poor', good_var: 'Good', ex_var: 'Excellent'}
+
+  if num_program == 1:
+    df = df.loc[df['program'] == exact_program]
+
+    df['program'] = df['program'].str.title().str.replace('_', ' ')
+    df['variable'] = pd.Categorical(df['variable'], categories=[fairpoor_var, good_var, ex_var])
+
+    title = program_title_df.loc[program_title_df['var_name'] == f'{var_string}', 'title_name'].iloc[0]
+
+    color_map = {fairpoor_var: '#a1c9f4', good_var: '#ffb482', ex_var: '#8de5a1'}
+    
+    if drop == True:
+      pro_fig = px.bar(df.dropna(), x = 'program', y = 'value', color = 'variable', facet_col = 'year', category_orders = {'variable': [fairpoor_var, good_var, ex_var]}, color_discrete_map = color_map,
+      title = title)
+      pro_fig.for_each_xaxis(lambda xaxis: xaxis.update(title = ''))
+      pro_fig.for_each_trace(lambda t: t.update(name = plot_names[t.name], legendgroup = plot_names[t.name], hovertemplate = t.hovertemplate.replace(t.name, plot_names[t.name])))
+
+      return pro_fig
+    
+    else:
+      pro_fig = px.bar(df, x = 'program', y = 'value', color = 'variable', facet_col = 'year', category_orders = {'variable': [fairpoor_var, good_var, ex_var]}, color_discrete_map = color_map,
+      title = title)
+      pro_fig.for_each_xaxis(lambda xaxis: xaxis.update(title = ''))
+      pro_fig.for_each_trace(lambda t: t.update(name = plot_names[t.name], legendgroup = plot_names[t.name], hovertemplate = t.hovertemplate.replace(t.name, plot_names[t.name])))
+
+      return pro_fig
+
+  else:
+    df = df.loc[df['program'].isin(exact_program)]
+
+    df['program'] = df['program'].str.title().str.replace('_', ' ')
+    df['variable'] = pd.Categorical(df['variable'], categories=[fairpoor_var, good_var, ex_var])
+    
+    title = program_title_df.loc[program_title_df['var_name'] == f'{var_string}', 'title_name'].iloc[0]
+
+    color_map = {fairpoor_var: '#a1c9f4', good_var: '#ffb482', ex_var: '#8de5a1'}
+
+    if drop == True:
+      pro_fig = px.bar(df.dropna(), x = 'program', y = 'value', color = 'variable', facet_col = 'year', category_orders = {'variable': [fairpoor_var, good_var, ex_var]}, color_discrete_map = color_map,
+      title = title)
+      pro_fig.for_each_xaxis(lambda xaxis: xaxis.update(title = ''))
+      pro_fig.for_each_trace(lambda t: t.update(name = plot_names[t.name], legendgroup = plot_names[t.name], hovertemplate = t.hovertemplate.replace(t.name, plot_names[t.name])))
+
+      return pro_fig
+    
+    else:
+      pro_fig = px.bar(df, x = 'program', y = 'value', color = 'variable', facet_col = 'year', category_orders = {'variable': [fairpoor_var, good_var, ex_var]}, color_discrete_map = color_map,
+      title = title)
+      pro_fig.for_each_xaxis(lambda xaxis: xaxis.update(title = ''))
+      pro_fig.for_each_trace(lambda t: t.update(name = plot_names[t.name], legendgroup = plot_names[t.name], hovertemplate = t.hovertemplate.replace(t.name, plot_names[t.name])))
+      
+      return pro_fig
+
+def var_table(wide_df, var_string, num_program, exact_program, drop = True):
+  if drop == True:
+    wide_df = wide_df.dropna().round(2).sort_values(['program', 'year'], ascending = True)
+
+    if num_program == 1:
+      exact_program = exact_program[0] if isinstance(exact_program, list) else exact_program
+      wide_df = wide_df.loc[wide_df['program'] == exact_program]
+
+      wide_df['program'] = wide_df['program'].str.title().str.replace('_', ' ')
+
+      title = program_title_df.loc[program_title_df['var_name'] == f'{var_string}', 'title_name'].iloc[0]
+
+      table = (
+          GT(wide_df)
+          .tab_header(title = title)
+          .cols_label(**{'year': 'Year', 'program': 'Program', f'{var_string}_ex': 'Excellent', f'{var_string}_good': 'Good', f'{var_string}_fair_poor': 'Fair Poor'})
+          .cols_move_to_start(columns = ['year', 'program', f'{var_string}_ex', f'{var_string}_good', f'{var_string}_fair_poor'])
+      )
+
+      return table
+
+    else:
+        wide_df = wide_df.loc[wide_df['program'].isin(exact_program)]
+
+        wide_df['program'] = wide_df['program'].str.title().str.replace('_', ' ')
+
+        title = program_title_df.loc[program_title_df['var_name'] == f'{var_string}', 'title_name'].iloc[0]
+
+        table = (
+            GT(wide_df)
+            .tab_header(title = title)
+            .cols_label(**{'year': 'Year', 'program': 'Program', f'{var_string}_ex': 'Excellent', f'{var_string}_good': 'Good', f'{var_string}_fair_poor': 'Fair Poor'})
+            .cols_move_to_start(columns = ['year', 'program', f'{var_string}_ex', f'{var_string}_good', f'{var_string}_fair_poor'])
+        )
+
+        return table
+
+  else: 
+    wide_df = wide_df.round(2).sort_values(['program', 'year'], ascending = True)
+
+    if num_program == 1:
+      exact_program = exact_program[0] if isinstance(exact_program, list) else exact_program
+      wide_df = wide_df.loc[wide_df['program'] == exact_program]
+
+      wide_df['program'] = wide_df['program'].str.title().str.replace('_', ' ')
+
+      title = program_title_df.loc[program_title_df['var_name'] == f'{var_string}', 'title_name'].iloc[0]
+
+      table = (
+          GT(wide_df)
+          .tab_header(title = title)
+          .cols_label(**{'year': 'Year', 'program': 'Program', f'{var_string}_ex': 'Excellent', f'{var_string}_good': 'Good', f'{var_string}_fair_poor': 'Fair Poor'})
+          .cols_move_to_start(columns = ['year', 'program', f'{var_string}_ex', f'{var_string}_good', f'{var_string}_fair_poor'])
+      )
+
+      return table
+
+    else:
+        wide_df = wide_df.loc[wide_df['program'].isin(exact_program)]
+
+        wide_df['program'] = wide_df['program'].str.title().str.replace('_', ' ')
+
+        title = program_title_df.loc[program_title_df['var_name'] == f'{var_string}', 'title_name'].iloc[0]
+
+        table = (
+            GT(wide_df)
+            .tab_header(title = title)
+            .cols_label(**{'year': 'Year', 'program': 'Program', f'{var_string}_ex': 'Excellent', f'{var_string}_good': 'Good', f'{var_string}_fair_poor': 'Fair Poor'})
+            .cols_move_to_start(columns = ['year', 'program', f'{var_string}_ex', f'{var_string}_good', f'{var_string}_fair_poor'])
+        )
+
+        return table
+
+```
+
+```{python}
+np.arange(2, len(unique_program_var))
+
+remove_excellent_good(program_df, unique_program_var[2], long = False)
+
+wide_program_df = []
+
+for i in np.arange(2, len(unique_program_var)):
+  df = remove_excellent_good(program_df, unique_program_var[i], long = False)
+  wide_program_df.append(df)
+
+wide_program_df[0].round(2).dropna().sort_values(['program', 'year'], ascending = True)
+
+# var_string1 = 'fac_qual'
+# (
+#   gt(wide_program_df[0].dropna().round(2))
+#   .tab_header(title = 'Faculty Quality')
+#   .cols_label(**{'year': 'Year', 'program': 'Program', f'{var_string1}_ex': 'Excellent', f'{var_string1}_good': 'Good', f'{var_string1}_fair_poor': 'Fair Poor'})
+#   .cols_move_to_start(columns = ['year', 'program', f'{var_string1}_ex', f'{var_string1}_good', f'{var_string1}_fair_poor'])
+# )
+
+long_program_df = []
+
+for i in np.arange(2, len(unique_program_var)):
+  df = remove_excellent_good(program_df, unique_program_var[i], long = True)
+  long_program_df.append(df)
+
+# long_program_df[0].dropna().rename({'year': 'Year'})
+# 
+# long_program_df[0].head()
+# 
+# long_program_df[0]['program'].str.title().str.replace('_', ' ')
+
+# ex_var = 'fac_qual_ex'
+# good_var = 'fac_qual_good'
+# fairpoor_var = 'fac_qual_fair_poor'
+# 
+# px.bar(number_of_programs(long_program_df[0], 2, ['school_psychology', 'special_education']).dropna(), x = 'program', y = 'value', color = 'variable', facet_col = 'year', category_orders = {'variable': [fairpoor_var, good_var, ex_var]})
+# 
+# px.bar(long_program_df[0].dropna(), x = 'value', y = 'program', color = 'variable', facet_col = 'year', category_orders = {'variable': [fairpoor_var, good_var, ex_var]})
+
+```
+
+```{python}
+# remove_excellent_good(program_df, 'fac_qual', long = True)
+
+# number_of_programs(remove_excellent_good(program_df, unique_program_var[2], long = True), 2, ['school_psychology', 'special_education'])
+
+plotly_stacked(long_program_df[0], unique_program_var[2], 1, all_programs[0])
+
+var_table(wide_program_df[4], unique_program_var[6])
+```
+
+```{python}
+advisor_cols = grad[grad.columns[grad.columns.str.contains('_agree$|disagree$')]].iloc[:, 0:26]
+
+advisor_long = grad.melt(id_vars = ['year', 'program', 'number_respondents'], value_vars = advisor_cols.columns)
+```
+
+```{python}
+inclusive_cols = grad[grad.columns[grad.columns.str.contains('_agree$|disagree$|_strong$')]].iloc[:, 27:59]
+
+inclusive_long = grad.melt(id_vars = ['year', 'program', 'number_respondents'], value_vars = inclusive_cols.columns)
+```
